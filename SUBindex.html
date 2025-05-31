@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windows 命令提示符</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 20px;
+        }
+        
+        .terminal-container {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            background: #1e1e1e;
+        }
+        
+        .terminal-header {
+            background: #3c3c3c;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #2d2d2d;
+        }
+        
+        .header-buttons {
+            display: flex;
+            gap: 8px;
+            margin-right: 10px;
+        }
+        
+        .header-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .close-btn { background: #ff5f57; }
+        .minimize-btn { background: #ffbd2e; }
+        .maximize-btn { background: #28c940; }
+        
+        .header-title {
+            color: #cccccc;
+            font-size: 14px;
+            flex-grow: 1;
+            text-align: center;
+            padding-right: 40px;
+        }
+        
+        .terminal-body {
+            background: #0c0c0c;
+            color: #cccccc;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            font-size: 16px;
+            line-height: 1.4;
+        }
+        
+        .output {
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        
+        .input-line {
+            display: flex;
+            align-items: center;
+            margin-top: 5px;
+        }
+        
+        .prompt {
+            color: #4ec9b0;
+            margin-right: 10px;
+            white-space: nowrap;
+        }
+        
+        .command-input {
+            background: transparent;
+            border: none;
+            color: #cccccc;
+            font-size: 16px;
+            width: 100%;
+            outline: none;
+            caret-color: #cccccc;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 18px;
+            background: #cccccc;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        .command-output {
+            margin: 5px 0 15px 0;
+            color: #d4d4d4;
+        }
+        
+        .success { color: #4ec9b0; }
+        .error { color: #f44747; }
+        .info { color: #9cdcfe; }
+        .warning { color: #d7ba7d; }
+        .system { color: #c586c0; }
+        
+        .welcome {
+            color: #4ec9b0;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .help-table {
+            margin: 10px 0;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .help-table th {
+            text-align: left;
+            padding: 5px 10px;
+            background: #2d2d2d;
+            color: #9cdcfe;
+        }
+        
+        .help-table td {
+            padding: 5px 10px;
+            border-bottom: 1px solid #2d2d2d;
+        }
+        
+        .directory-list {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .dir-item {
+            margin: 3px 0;
+        }
+        
+        .dir-date {
+            display: inline-block;
+            width: 100px;
+            color: #d7ba7d;
+        }
+        
+        .dir-size {
+            display: inline-block;
+            width: 100px;
+            text-align: right;
+            margin-right: 20px;
+            color: #b5cea8;
+        }
+        
+        .dir-name {
+            color: #9cdcfe;
+        }
+        
+        .dir-dir {
+            color: #4ec9b0;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal-container">
+        <div class="terminal-header">
+            <div class="header-buttons">
+                <div class="header-btn close-btn"></div>
+                <div class="header-btn minimize-btn"></div>
+                <div class="header-btn maximize-btn"></div>
+            </div>
+            <div class="header-title">命令提示符</div>
+        </div>
+        <div class="terminal-body">
+            <div class="welcome">
+                Microsoft Windows [版本 10.0.19045.3803]<br>
+                (c) Microsoft Corporation。保留所有权利。<br><br>
+                欢迎使用 Windows 命令提示符模拟器<br>
+                输入 "help" 查看可用命令
+            </div>
+            <div id="output"></div>
+            <div class="input-line">
+                <div class="prompt">C:\&gt;</div>
+                <input type="text" class="command-input" id="command-input" autofocus>
+                <div class="cursor"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const commandInput = document.getElementById('command-input');
+            const outputContainer = document.getElementById('output');
+            let commandHistory = [];
+            let historyIndex = -1;
+            
+            // 初始提示
+            addOutput('', 'system');
+            
+            commandInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const command = commandInput.value.trim();
+                    if (command) {
+                        commandHistory.push(command);
+                        historyIndex = commandHistory.length;
+                        addOutput(command, 'input');
+                        processCommand(command);
+                        commandInput.value = '';
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (commandHistory.length > 0) {
+                        if (historyIndex <= 0) historyIndex = commandHistory.length;
+                        historyIndex--;
+                        commandInput.value = commandHistory[historyIndex];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (commandHistory.length > 0) {
+                        historyIndex++;
+                        if (historyIndex >= commandHistory.length) {
+                            historyIndex = commandHistory.length;
+                            commandInput.value = '';
+                        } else {
+                            commandInput.value = commandHistory[historyIndex];
+                        }
+                    }
+                }
+            });
+            
+            function addOutput(text, type) {
+                const outputLine = document.createElement('div');
+                outputLine.className = 'command-output';
+                
+                if (type === 'input') {
+                    outputLine.innerHTML = `<span class="prompt">C:\\&gt;</span> ${text}`;
+                } else if (type === 'success') {
+                    outputLine.innerHTML = `<span class="success">${text}</span>`;
+                } else if (type === 'error') {
+                    outputLine.innerHTML = `<span class="error">${text}</span>`;
+                } else if (type === 'info') {
+                    outputLine.innerHTML = `<span class="info">${text}</span>`;
+                } else if (type === 'warning') {
+                    outputLine.innerHTML = `<span class="warning">${text}</span>`;
+                } else if (type === 'system') {
+                    outputLine.innerHTML = `<span class="system">${text}</span>`;
+                }
+                
+                outputContainer.appendChild(outputLine);
+                outputContainer.scrollTop = outputContainer.scrollHeight;
+            }
+            
+            function processCommand(command) {
+                const cmd = command.toLowerCase();
+                
+                switch(cmd) {
+                    case 'help':
+                        showHelp();
+                        break;
+                    case 'cls':
+                        clearScreen();
+                        break;
+                    case 'dir':
+                        showDirectory();
+                        break;
+                    case 'ver':
+                        showVersion();
+                        break;
+                    case 'date':
+                        showDate();
+                        break;
+                    case 'time':
+                        showTime();
+                        break;
+                    case 'echo':
+                        addOutput('ECHO 状态：打开', 'info');
+                        break;
+                    case 'exit':
+                        addOutput('此终端是模拟器，无法真正退出。请关闭浏览器标签页。', 'warning');
+                        break;
+                    case 'color':
+                        addOutput('当前模拟器不支持更改颜色设置。', 'warning');
+                        break;
+                    case 'ipconfig':
+                        showIpConfig();
+                        break;
+                    case 'ping':
+                        addOutput('Ping 请求无法在模拟器中执行。', 'warning');
+                        break;
+                    case '':
+                        // 什么都不做
+                        break;
+                    default:
+                        addOutput(`'${command}' 不是内部或外部命令，也不是可运行的程序或批处理文件。`, 'error');
+                }
+            }
+            
+            function showHelp() {
+                addOutput('', 'info');
+                addOutput('可用命令:', 'info');
+                
+                const table = document.createElement('table');
+                table.className = 'help-table';
+                
+                const commands = [
+                    {command: 'HELP', description: '显示帮助信息'},
+                    {command: 'CLS', description: '清除屏幕'},
+                    {command: 'DIR', description: '显示目录中的文件和子目录列表'},
+                    {command: 'VER', description: '显示系统版本'},
+                    {command: 'DATE', description: '显示当前日期'},
+                    {command: 'TIME', description: '显示当前时间'},
+                    {command: 'ECHO', description: '显示消息或切换命令回显'},
+                    {command: 'EXIT', description: '退出终端（模拟）'},
+                    {command: 'COLOR', description: '设置控制台颜色（模拟）'},
+                    {command: 'IPCONFIG', description: '显示网络配置信息（模拟）'},
+                    {command: 'PING', description: '测试网络连接（模拟）'}
+                ];
+                
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                headerRow.innerHTML = '<th>命令</th><th>描述</th>';
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                
+                const tbody = document.createElement('tbody');
+                commands.forEach(cmd => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${cmd.command}</td><td>${cmd.description}</td>`;
+                    tbody.appendChild(row);
+                });
+                table.appendChild(tbody);
+                
+                const outputLine = document.createElement('div');
+                outputLine.className = 'command-output';
+                outputLine.appendChild(table);
+                outputContainer.appendChild(outputLine);
+                
+                outputContainer.scrollTop = outputContainer.scrollHeight;
+            }
+            
+            function clearScreen() {
+                outputContainer.innerHTML = '';
+                addOutput('', 'system');
+            }
+            
+            function showDirectory() {
+                const files = [
+                    {name: 'Documents', type: 'dir', date: '2023-10-15', size: '<DIR>'},
+                    {name: 'Downloads', type: 'dir', date: '2023-11-20', size: '<DIR>'},
+                    {name: 'System', type: 'dir', date: '2023-09-01', size: '<DIR>'},
+                    {name: 'notes.txt', type: 'file', date: '2024-01-10', size: '1.2 KB'},
+                    {name: 'report.pdf', type: 'file', date: '2024-01-15', size: '450 KB'},
+                    {name: 'image.jpg', type: 'file', date: '2024-01-12', size: '2.4 MB'},
+                    {name: 'program.exe', type: 'file', date: '2024-01-18', size: '1.8 MB'}
+                ];
+                
+                addOutput('', 'info');
+                addOutput(` C:\\ 的目录`, 'info');
+                addOutput('', 'info');
+                
+                const dirList = document.createElement('div');
+                dirList.className = 'directory-list';
+                
+                files.forEach(file => {
+                    const item = document.createElement('div');
+                    item.className = 'dir-item';
+                    
+                    const dateSpan = document.createElement('span');
+                    dateSpan.className = 'dir-date';
+                    dateSpan.textContent = file.date;
+                    
+                    const sizeSpan = document.createElement('span');
+                    sizeSpan.className = 'dir-size';
+                    sizeSpan.textContent = file.size;
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = file.type === 'dir' ? 'dir-dir' : 'dir-name';
+                    nameSpan.textContent = file.name;
+                    
+                    item.appendChild(dateSpan);
+                    item.appendChild(sizeSpan);
+                    item.appendChild(nameSpan);
+                    dirList.appendChild(item);
+                });
+                
+                addOutput('', 'info');
+                addOutput(`               ${files.length} 个文件`, 'info');
+                
+                const outputLine = document.createElement('div');
+                outputLine.className = 'command-output';
+                outputLine.appendChild(dirList);
+                outputContainer.appendChild(outputLine);
+                
+                outputContainer.scrollTop = outputContainer.scrollHeight;
+            }
+            
+            function showVersion() {
+                addOutput('Microsoft Windows [版本 10.0.19045.3803]', 'info');
+            }
+            
+            function showDate() {
+                const now = new Date();
+                const dateStr = now.toLocaleDateString('zh-CN', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit',
+                    weekday: 'long'
+                });
+                addOutput(`当前日期: ${dateStr}`, 'info');
+            }
+            
+            function showTime() {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('zh-CN', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit' 
+                });
+                addOutput(`当前时间: ${timeStr}`, 'info');
+            }
+            
+            function showIpConfig() {
+                addOutput('', 'info');
+                addOutput('Windows IP 配置', 'info');
+                addOutput('', 'info');
+                addOutput('以太网适配器 以太网:', 'info');
+                addOutput('   连接特定的 DNS 后缀 . . . . . . . : example.com', 'info');
+                addOutput('   本地链接 IPv6 地址. . . . . . . . : fe80::1234:5678:90ab:cdef%12', 'info');
+                addOutput('   IPv4 地址 . . . . . . . . . . . . : 192.168.1.100', 'info');
+                addOutput('   子网掩码  . . . . . . . . . . . . : 255.255.255.0', 'info');
+                addOutput('   默认网关. . . . . . . . . . . . . : 192.168.1.1', 'info');
+                addOutput('', 'info');
+                addOutput('无线局域网适配器 WLAN:', 'info');
+                addOutput('   连接特定的 DNS 后缀 . . . . . . . : home', 'info');
+                addOutput('   IPv4 地址 . . . . . . . . . . . . : 192.168.0.50', 'info');
+                addOutput('   子网掩码  . . . . . . . . . . . . : 255.255.255.0', 'info');
+                addOutput('   默认网关. . . . . . . . . . . . . : 192.168.0.1', 'info');
+            }
+        });
+    </script>
+</body>
+  </html>
