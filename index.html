@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务器状态监控面板</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #2c3e50);
+            color: #ecf0f1;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 40px;
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(to right, #3498db, #2ecc71);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
+        
+        .subtitle {
+            color: #bdc3c7;
+            font-size: 1.2rem;
+            margin-top: 10px;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .card {
+            background: rgba(30, 40, 60, 0.7);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        }
+        
+        .card-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            color: #3498db;
+            font-size: 1.4rem;
+        }
+        
+        .card-title i {
+            margin-right: 12px;
+            font-size: 1.8rem;
+        }
+        
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .data-row:last-child {
+            border-bottom: none;
+        }
+        
+        .data-label {
+            color: #95a5a6;
+            font-weight: 300;
+        }
+        
+        .data-value {
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .ip-address {
+            color: #2ecc71;
+        }
+        
+        .ping {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .ping-good {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
+        
+        .ping-medium {
+            background: rgba(241, 196, 15, 0.2);
+            color: #f1c40f;
+        }
+        
+        .ping-bad {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+        }
+        
+        .location {
+            color: #3498db;
+        }
+        
+        .server-map {
+            background: rgba(30, 40, 60, 0.7);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            margin-top: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .map-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #3498db;
+            font-size: 1.8rem;
+        }
+        
+        .world-map {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="800" height="400"><path fill="%232c3e50" d="M0 0h800v400H0z"/><path fill="%23344a5e" d="M150 100 Q 300 50, 450 100 T 750 100 L 700 300 Q 500 350, 300 300 T 100 250 Z"/></svg>') center/contain no-repeat;
+            margin: 0 auto;
+        }
+        
+        .server-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #e74c3c;
+            border-radius: 50%;
+            box-shadow: 0 0 0 5px rgba(231, 76, 60, 0.4);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(231, 76, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+        }
+        
+        .refresh-info {
+            text-align: center;
+            margin-top: 30px;
+            color: #95a5a6;
+            font-size: 0.9rem;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            margin-top: 50px;
+            color: #7f8c8d;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>服务器状态监控面板</h1>
+            <p class="subtitle">实时监控服务器状态与网络连接</p>
+        </header>
+        
+        <div class="dashboard">
+            <div class="card">
+                <div class="card-title">
+                    <i>🌐</i>
+                    <h2>主服务器</h2>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">IP 地址</span>
+                    <span class="data-value ip-address" id="ip-1">192.168.1.101</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">延迟</span>
+                    <span class="data-value">
+                        <span class="ping ping-good" id="ping-1">23ms</span>
+                    </span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">IP 属地</span>
+                    <span class="data-value location" id="location-1">美国, 加利福尼亚</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">状态</span>
+                    <span class="data-value" style="color:#2ecc71;">在线</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">
+                    <i>💾</i>
+                    <h2>数据库服务器</h2>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">IP 地址</span>
+                    <span class="data-value ip-address" id="ip-2">10.0.0.42</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">延迟</span>
+                    <span class="data-value">
+                        <span class="ping ping-medium" id="ping-2">87ms</span>
+                    </span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">IP 属地</span>
+                    <span class="data-value location" id="location-2">德国, 法兰克福</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">状态</span>
+                    <span class="data-value" style="color:#2ecc71;">在线</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">
+                    <i>🔒</i>
+                    <h2>备份服务器</h2>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">IP 地址</span>
+                    <span class="data-value ip-address" id="ip-3">172.16.254.200</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">延迟</span>
+                    <span class="data-value">
+                        <span class="ping ping-good" id="ping-3">42ms</span>
+                    </span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">IP 属地</span>
+                    <span class="data-value location" id="location-3">日本, 东京</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">状态</span>
+                    <span class="data-value" style="color:#2ecc71;">在线</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="server-map">
+            <h2 class="map-title">全球服务器分布图</h2>
+            <div class="world-map">
+                <div class="server-marker" style="top: 30%; left: 20%;"></div>
+                <div class="server-marker" style="top: 40%; left: 50%;"></div>
+                <div class="server-marker" style="top: 35%; left: 80%;"></div>
+            </div>
+        </div>
+        
+        <div class="refresh-info">
+            数据每 <span id="countdown">5</span> 秒自动刷新
+        </div>
+    </div>
+    
+    <footer>
+        <p>服务器状态监控系统 &copy; 2023 | 实时更新 | 安全可靠</p>
+    </footer>
+    
+    <script>
+        // 随机IP地址生成
+        function generateRandomIP() {
+            return Array.from({length: 4}, () => Math.floor(Math.random() * 255)).join('.');
+        }
+        
+        // 随机延迟生成
+        function generateRandomPing() {
+            const ping = Math.floor(Math.random() * 150) + 1;
+            let className = 'ping-good';
+            
+            if (ping > 100) className = 'ping-bad';
+            else if (ping > 50) className = 'ping-medium';
+            
+            return { ping, className };
+        }
+        
+        // 随机位置生成
+        function generateRandomLocation() {
+            const locations = [
+                '美国, 纽约', '美国, 加利福尼亚', '英国, 伦敦', 
+                '德国, 法兰克福', '日本, 东京', '新加坡', 
+                '澳大利亚, 悉尼', '巴西, 圣保罗', '印度, 孟买',
+                '中国, 香港', '韩国, 首尔', '加拿大, 多伦多'
+            ];
+            return locations[Math.floor(Math.random() * locations.length)];
+        }
+        
+        // 更新服务器数据
+        function updateServerData() {
+            for (let i = 1; i <= 3; i++) {
+                document.getElementById(`ip-${i}`).textContent = generateRandomIP();
+                
+                const pingData = generateRandomPing();
+                const pingElement = document.getElementById(`ping-${i}`);
+                pingElement.textContent = `${pingData.ping}ms`;
+                pingElement.className = `ping ${pingData.className}`;
+                
+                document.getElementById(`location-${i}`).textContent = generateRandomLocation();
+            }
+            
+            // 重置倒计时
+            countdown = 5;
+        }
+        
+        // 倒计时功能
+        let countdown = 5;
+        setInterval(() => {
+            countdown--;
+            document.getElementById('countdown').textContent = countdown;
+            
+            if (countdown <= 0) {
+                updateServerData();
+            }
+        }, 1000);
+        
+        // 初始更新
+        updateServerData();
+    </script>
+</body>
+</html>
